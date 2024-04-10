@@ -15,7 +15,7 @@ map <int , int> knight_state;
 map <int , int> knight_hp;
 map <int , int> knight_score;
 map <int , int> knight_pushed;
-
+map <int , int> knight_visited;
 int dx[4]={-1,0,1,0};
 int dy[4]={0,1,0,-1};
 
@@ -36,11 +36,13 @@ void to_sum(int i){
     if(knight_hp[i] <=0) knight_state[i] = 1;
     return ;
 }
-vector<int> is_knight(int x1, int y1, int x2, int y2){
+vector<int> is_knight(int x1, int y1, int x2, int y2, int cur){
 
     vector<int> qe;
     for(int i=1; i<=n;i++){
-        if(knight_state[i] != 0) continue;
+        if(i == cur) continue;
+        if(knight_state[i] == 1) continue;
+        if(knight_visited[i] == 1) continue;
         int f_x = knight[i].first;
         int f_y = knight[i].second;
         int r_x = knight[i].first + knight_land[i].first - 1;
@@ -72,9 +74,9 @@ int is_wall(int x1, int y1, int x2, int y2){
     return 0;
 }
 
-int knight_mv(int target_knight, int v){
+void knight_mv(int target_knight, int v){
 
-    if(knight_state[target_knight] != 0) return 0;
+    if(knight_state[target_knight] == 1) return ;
 
     int f_x = knight[target_knight].first;
     int f_y = knight[target_knight].second;
@@ -89,21 +91,21 @@ int knight_mv(int target_knight, int v){
     // 이동하는게 벽을 넘는지
     if(mv_f_x > l || mv_f_x <=0 || mv_f_y > l || mv_f_y <=0 || mv_r_x > l || mv_r_x <=0 || mv_r_y > l || mv_r_y <=0){
         sum_ok = 0;
-        return 1;
+        return ;
     }
     if(is_wall(mv_f_x,mv_f_y,mv_r_x,mv_r_y)){
         sum_ok = 0;
-        return 1;
+        return ;
     }
 
     // 이동하는데 상대 기사가 있는지
-    knight_state[target_knight] = 2;
-    vector<int> qe = is_knight(mv_f_x,mv_f_y,mv_r_x,mv_r_y);
+    vector<int> qe = is_knight(mv_f_x,mv_f_y,mv_r_x,mv_r_y,target_knight);
     if(!qe.empty()){
         for(int i = 0; i<qe.size();i++){
             //cout << qe[i] <<' ';
             knight_pushed[qe[i]] = 1;
-            if(knight_mv(qe[i],v)) return 1;
+            knight_visited[qe[i]] = 1;
+            knight_mv(qe[i],v);
         }
         //cout<<'\n';
     }
@@ -112,14 +114,14 @@ int knight_mv(int target_knight, int v){
     else{
         knight[target_knight].first = mv_f_x;
         knight[target_knight].second = mv_f_y;
-        return 0;
+        return;
     }
     if(sum_ok){
         knight[target_knight].first = mv_f_x;
         knight[target_knight].second = mv_f_y;
-        return 0;
+        return;
     }
-    return 0;
+    return;
 }
 
 int main(){
@@ -148,29 +150,31 @@ int main(){
         knight_score[i] = 0;
         knight_state[i] = 0;
         knight_pushed[i] = 0;
+        knight_visited[i] = 0;
     }
 
     for(int i= 0; i < q; i++){
         sum_ok = 1;
         int target_knight, v ;
         cin >> target_knight >> v;
+        knight_visited[target_knight] = 1;
         knight_mv(target_knight,v);
 
         if(sum_ok){
             for(int j=1;j<=n;j++){
-                if(knight_pushed[j]!=0){
+                if(knight_pushed[j]==1){
                     knight_pushed[j] = 0;
                     to_sum(j);
                 }
-                if(knight_state[j]== 2) knight_state[j] =0;
+                knight_visited[j] = 0;
             }
         }
         else{
             for(int j=1;j<=n;j++){
-                if(knight_pushed[j]!=0){
+                if(knight_pushed[j]==1){
                     knight_pushed[j] = 0;
                 }
-                if(knight_state[j]== 2) knight_state[j] =0;
+                knight_visited[j] = 0;
             }
         }
 
