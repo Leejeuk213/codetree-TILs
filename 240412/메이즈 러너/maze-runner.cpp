@@ -8,7 +8,7 @@ map<int,pair<int,int>> runner;
 map<int,int> runner_state; // 1이면 퇴장
 map<int,int> runner_score; // 1이면 퇴장
 
-int dx[4]={1,-1,0,0};
+int dx[4]={-1,1,0,0};
 int dy[4]={0,0,-1,1};
 
 int e_x,e_y;
@@ -52,11 +52,9 @@ vector<int> is_here(int x1, int x2, int y1, int y2){
                     v.push_back(k);
                 } 
             }
-
-            if(is_runner && is_end) return v;
         }
     }
-
+    if(is_runner && is_end) return v;
     vector<int> trash;
     return trash;
 }
@@ -92,7 +90,7 @@ void maze_rotate(){
     // cout << size << ' ' << f_x << ' ' << f_y << ' ' << r_x << ' ' << r_y << '\n';
     int temp[11][11] = {0,};
     int end_check = 1;
-    int checked[m+1]={0,};
+    int checked[11]={0,};
 
     int x = f_x;
     for(int i =r_y; i>= f_y; i--){
