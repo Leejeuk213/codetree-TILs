@@ -77,8 +77,8 @@ void attack(int x, int y, vector<pair<int,int>> v){
         v2.push_back(make_pair(m_x,m_y));
 
         attack(m_x,m_y,v2);
-        visited[m_x][m_y] = 0;
     }
+    visited[x][y] = 0;
 
     return;
 }
@@ -278,6 +278,20 @@ void bomb(){
     return ;
 }
 
+int is_over(){
+
+int cnt = 0;
+    for(int j = 1; j<=n;j++){
+        for(int k = 1; k<=m;k++){
+            if(board[j][k] > 0) cnt ++;
+            if(cnt > 1) return 0;
+        }
+
+    }
+
+    return 1;
+}
+
 int main(){
 
     // vector<int> v;
@@ -294,6 +308,7 @@ int main(){
     for(int i = 1; i<=z; i++){
         
         init();
+        if(is_over()) break;
         select_att();
         select_def();
 
