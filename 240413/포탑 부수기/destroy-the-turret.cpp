@@ -1,362 +1,267 @@
-#include<iostream>
-#include<vector>
+#include <iostream>
+#include <algorithm>
+#include <queue>
+#include <vector>
+#include <tuple>
+
 using namespace std;
 
+#define MAX_N 10
 
-int board[11][11];
-int att[11][11];
-int visited[11][11] = {0,};
-int n,m,z;
+const int dx[4] = {0, 1, 0, -1}, dy[4] = {1, 0, -1, 0};
+const int dx2[9] = {0, 0, 0, -1, -1, -1, 1, 1, 1}, dy2[9] = {0, -1, 1, 0, -1, 1, 0, -1, 1};
 
-int a_x,a_y;
-int d_x,d_y;
+int n, m, k;
+int turn;
 
-int dx[4] ={0,1,0,-1};
-int dy[4] ={1,0,-1,0};
+// 현재 포탑들이 가진 힘과 언제 각성했는지 기록해줍니다.
+int board[MAX_N][MAX_N];
+int rec[MAX_N][MAX_N];
 
-int bdx[8] ={0,1,0,-1,1,1,-1,-1};
-int bdy[8] ={1,0,-1,0,1,-1,1,-1};
+// 빛의 공격을 할 때 방문 여부와 경로 방향을 기록해줍니다.
+bool vis[MAX_N][MAX_N];
+int back_x[MAX_N][MAX_N], back_y[MAX_N][MAX_N];
 
-int is_find = 0;
-int is_attacked[11][11] ={0,};
-vector<pair<int,int>>last_v;
-int min_route = 987654321;
+// 공격과 무관했는지 여부를 저장합니다.
+bool is_active[MAX_N][MAX_N];
 
-void re(){
+// 구조체 turret을 정의해 관리합니다.
+struct Turret{
+    int x, y, r, p;
+};
 
-    for(int i = 1; i<=n;i++){
-        for(int j=1; j<=m;j++){
-            if(is_attacked[i][j] == 0 && board[i][j] > 0) board[i][j] ++;
-        }
-    }
+// 살아있는 포탑들을 관리합니다.
+vector<Turret> live_turret;
 
+// turret의 약함, 강함 우선순위에 맞게 정렬함수를 만들어줍니다.
+bool cmp(Turret a, Turret b) {
+    if(a.p != b.p) return a.p < b.p;
+    if(a.r != b.r) return a.r > b.r;
+    if(a.x + a.y != b.x + b.y) return a.x + a.y > b.x + b.y;
+    return a.y > b.y;
 }
 
-void init(){
-    last_v.clear();
-    min_route = 987654321;
-    is_find = 0;
-    for(int i = 1; i<=n;i++){
-        for(int j=1; j<=m;j++){
-            visited[i][j] = 0;
-            is_attacked[i][j] = 0;
+// 턴을 진행하기 전 필요한 전처리를 정리해줍니다.
+void Init() {
+    turn++;
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < m; j++) {
+            vis[i][j] = false;
+            is_active[i][j] = false;
+        }
+}
+
+// 각성을 진행합니다.
+// 각성을 하면 가장 약한 포탑이 n + m만큼 강해집니다.
+void Awake() {
+    // 우선순위에 맞게 현재 살아있는 포탑들을 정렬해줍니다.
+    sort(live_turret.begin(), live_turret.end(), cmp);
+
+    // 가장 약한 포탑을 찾아 n + m만큼 더해주고,
+    // is_active와 live_turret 배열도 갱신해줍니다.
+    Turret weak_turret = live_turret[0];
+    int x = weak_turret.x;
+    int y = weak_turret.y;
+
+    board[x][y] += n + m;
+    rec[x][y] = turn;
+    weak_turret.p = board[x][y];
+    weak_turret.r = rec[x][y];
+    is_active[x][y] = true;
+
+    live_turret[0] = weak_turret;
+}
+
+// 레이저 공격을 진행합니다.
+bool LaserAttack() {
+    // 기존에 정렬된 가장 앞선 포탑이
+    // 각성한 포탑입니다.
+    Turret weak_turret = live_turret[0];
+    int sx = weak_turret.x;
+    int sy = weak_turret.y;
+    int pow = weak_turret.p;
+
+    // 기존에 정렬된 가장 뒤 포탑이
+    // 각성한 포탑을 제외한 포탑 중 가장 강한 포탑입니다.
+    Turret strong_turret = live_turret[(int) live_turret.size() - 1];
+    int ex = strong_turret.x;
+    int ey = strong_turret.y;
+
+    // bfs를 통해 최단경로를 관리해줍니다.
+    queue<pair<int, int> > q;
+    vis[sx][sy] = true;
+    q.push(make_pair(sx, sy));
+
+    // 가장 강한 포탑에게 도달 가능한지 여부를 can_attack에 관리해줍니다.
+    bool can_attack = false;
+
+    while(!q.empty()) {
+        int x, y;
+        tie(x, y) = q.front(); q.pop();
+
+        // 가장 강한 포탑에게 도달할 수 있다면
+        // 바로 멈춥니다.
+        if(x == ex && y == ey) {
+            can_attack = true;
+            break;
+        }
+
+        // 각각 우, 하, 좌, 상 순서대로 방문하며 방문 가능한 포탑들을 찾고
+        // queue에 저장해줍니다.
+        for(int dir = 0; dir < 4; dir++) {
+            int nx = (x + dx[dir] + n) % n;
+            int ny = (y + dy[dir] + m) % m;
+
+            // 이미 방문한 포탑이라면 넘어갑니다.
+            if(vis[nx][ny]) 
+                continue;
+
+            // 벽이라면 넘어갑니다.
+            if(board[nx][ny] == 0) 
+                continue;
+
+            vis[nx][ny] = true;
+            back_x[nx][ny] = x;
+            back_y[nx][ny] = y;
+            q.push(make_pair(nx, ny));
+        }
+    }
+
+    // 만약 도달 가능하다면 공격을 진행합니다.
+    if(can_attack) {
+        // 우선 가장 강한 포탑에게는 pow만큼의 공격을 진행합니다.
+        board[ex][ey] -= pow;
+        if(board[ex][ey] < 0) 
+            board[ex][ey] = 0;
+        is_active[ex][ey] = true;
+
+        // 기존의 경로를 역추적하며
+        // 경로 상에 있는 모든 포탑에게 pow / 2만큼의 공격을 진행합니다.
+        int cx = back_x[ex][ey];
+        int cy = back_y[ex][ey];
+
+        while(!(cx == sx && cy == sy)) {
+            board[cx][cy] -= pow / 2;
+            if(board[cx][cy] < 0) 
+                board[cx][cy] = 0;
+            is_active[cx][cy] = true;
+
+            int next_cx = back_x[cx][cy];
+            int next_cy = back_y[cx][cy];
+
+            cx = next_cx;
+            cy = next_cy;
+        }
+    }
+
+    // 공격을 성공했는지 여부를 반환합니다.
+    return can_attack;
+}
+
+// 레이저 공격을 하지 못했다면 폭탄 공격을 진행합니다.
+void BombAttack() {
+    // 기존에 정렬된 가장 앞선 포탑이
+    // 각성한 포탑입니다.
+    Turret weak_turret = live_turret[0];
+    int sx = weak_turret.x;
+    int sy = weak_turret.y;
+    int pow = weak_turret.p;
+
+    // 기존에 정렬된 가장 뒤 포탑이
+    // 각성한 포탑을 제외한 포탑 중 가장 강한 포탑입니다.
+    Turret strong_turret = live_turret[(int) live_turret.size() - 1];
+    int ex = strong_turret.x;
+    int ey = strong_turret.y;
+
+    // 가장 강한 포탑의 3 * 3 범위를 모두 탐색하며
+    // 각각에 맞는 공격을 진행합니다.
+    for(int dir = 0; dir < 9; dir++) {
+        int nx = (ex + dx2[dir] + n) % n;
+        int ny = (ey + dy2[dir] + m) % m;
+
+        // 각성한 포탑 자기 자신일 경우 넘어갑니다.
+        if(nx == sx && ny == sy) 
+            continue;
+
+        // 가장 강한 포탑일 경우 pow만큼의 공격을 진행합니다.
+        if(nx == ex && ny == ey) {
+            board[nx][ny] -= pow;
+            if(board[nx][ny] < 0) 
+                board[nx][ny] = 0;
+            is_active[nx][ny] = true;
+        }
+        // 그 외의 경우 pow / 2만큼의 공격을 진행합니다.
+        else {
+            board[nx][ny] -= pow / 2;
+            if(board[nx][ny] < 0) 
+                board[nx][ny] = 0;
+            is_active[nx][ny] = true;
         }
     }
 }
 
-void attack(int x, int y, vector<pair<int,int>> v){
-
-    if(v.size() >= min_route) return;
-    if(x == d_x && y == d_y){
-        is_find = 1;
-        if(min_route > v.size()){
-            min_route = v.size();
-            last_v = v;
+// 공격에 관여하지 않은 모든 살아있는 포탑의 힘을 1 증가시킵니다.
+void Reserve() {
+    for(int i = 0; i < n; i++) {
+        for(int j = 0; j < m; j++) {
+            if(is_active[i][j]) 
+                continue;
+            if(board[i][j] == 0) 
+                continue;
+            board[i][j]++;
         }
-        return;
     }
-
-
-    for(int i = 0 ; i< 4; i++){
-
-        int m_x = x + dx[i];
-        int m_y = y + dy[i];
-
-        if(m_x < 1) m_x = n;
-        if(m_x > n) m_x = 1;
-
-        if(m_y < 1) m_y = m;
-        if(m_y > m) m_y = 1;
-
-        if(board[m_x][m_y] <= 0 || visited[m_x][m_y] == 1) continue;
-        vector<pair<int,int>> v2 = v;
-
-        visited[m_x][m_y] = 1;
-        v2.push_back(make_pair(m_x,m_y));
-
-        attack(m_x,m_y,v2);
-        visited[m_x][m_y] = 0;
-    }
-
-    return;
 }
 
-void select_att(){
-
-    vector<pair<int,int> > v1;
-
-    int min = 987654321;
-    // 1 공격력 검증
-    for(int i= 1; i<=n;i++){
-        for(int j=1;j<=m;j++){
-            
-            if(board[i][j] <= 0) continue;
-
-            if(board[i][j] < min) {
-                v1.clear();
-                v1.push_back(make_pair(i,j));
-                min = board[i][j];
-            }
-            else if (board[i][j] == min){
-                v1.push_back(make_pair(i,j));
-            }
-        }  
-    }
-    if(v1.size() == 1) {
-        a_x = v1[0].first;
-        a_y = v1[0].second;
-        return;
-    }
-
-    // 2 공격한 시점 검증
-    vector<pair<int,int> > v2;
-    int max = -1;
-    for(int k = 0; k<v1.size();k++){
-    
-        int i = v1[k].first;
-        int j = v1[k].second;
-        if(att[i][j] > max) {
-                v2.clear();
-                v2.push_back(make_pair(i,j));
-                max = att[i][j];
-            }
-        else if (att[i][j] == max){
-            v2.push_back(make_pair(i,j));
-        }
-    }
-
-    if(v2.size() == 1) {
-        a_x = v2[0].first;
-        a_y = v2[0].second;
-        return;
-    }
-
-    // 3 행 + 열 검증
-    vector<pair<int,int> > v3;
-    max = -1;
-    for(int k = 0; k<v2.size();k++){
-    
-        int i = v2[k].first;
-        int j = v2[k].second;
-        if(i + j> max) {
-                v3.clear();
-                v3.push_back(make_pair(i,j));
-                max = i+j;
-            }
-        else if (i+j == max){
-            v3.push_back(make_pair(i,j));
-        }
-    }
-    if(v3.size() == 1) {
-        a_x = v3[0].first;
-        a_y = v3[0].second;
-        return;
-    }
-
-    // 3 열  검증
-    max = -1;
-    for(int k = 0; k<v3.size();k++){
-        int i = v3[k].first;
-        int j = v3[k].second;
-        if(j> max) {
-            max = j;
-            a_x = i;
-            a_y = j;
-        }
-    }
-    return;
-}
-
-void select_def(){
-
-    vector<pair<int,int> > v1;
-
-    int max = 0;
-    // 1 공격력 검증
-    for(int i= 1; i<=n;i++){
-        for(int j=1;j<=m;j++){
-            
-            if(board[i][j] <= 0) continue;
-
-            if(board[i][j] > max) {
-                v1.clear();
-                v1.push_back(make_pair(i,j));
-                max = board[i][j];
-            }
-            else if (board[i][j] == max){
-                v1.push_back(make_pair(i,j));
-            }
-        }  
-    }
-    if(v1.size() == 1) {
-        d_x = v1[0].first;
-        d_y = v1[0].second;
-        return;
-    }
-
-    // 2 공격한 시점 검증
-    vector<pair<int,int> > v2;
-    int min = 987654321;
-    for(int k = 0; k<v1.size();k++){
-    
-        int i = v1[k].first;
-        int j = v1[k].second;
-        if(att[i][j] < min) {
-                v2.clear();
-                v2.push_back(make_pair(i,j));
-                min = att[i][j];
-            }
-        else if (att[i][j] == min){
-            v2.push_back(make_pair(i,j));
-        }
-    }
-
-    if(v2.size() == 1) {
-        d_x = v2[0].first;
-        d_y = v2[0].second;
-        return;
-    }
-
-    // 3 행 + 열 검증
-    vector<pair<int,int> > v3;
-    min = 987654321;
-    for(int k = 0; k<v2.size();k++){
-    
-        int i = v2[k].first;
-        int j = v2[k].second;
-        if(i + j < min) {
-                v3.clear();
-                v3.push_back(make_pair(i,j));
-                min = i+j;
-            }
-        else if (i+j == min){
-            v3.push_back(make_pair(i,j));
-        }
-    }
-    if(v3.size() == 1) {
-        d_x = v3[0].first;
-        d_y = v3[0].second;
-        return;
-    }
-
-    // 3 열  검증
-    min = 987654321;
-    for(int k = 0; k<v3.size();k++){
-        int i = v3[k].first;
-        int j = v3[k].second;
-        if(j < min) {
-            min = j;
-            d_x = i;
-            d_y = j;
-        }
-    }
-    return;
-}
-
-void bomb(){
-
-    board[d_x][d_y] -= board[a_x][a_y];
-    for(int i = 0; i< 8; i++){
-
-        int m_x = d_x + bdx[i];
-        int m_y = d_y + bdy[i];
-
-        if(m_x < 1) m_x = n;
-        if(m_x > n) m_x = 1;
-
-        if(m_y < 1) m_y = m;
-        if(m_y > m) m_y = 1;
-
-        if(m_x == a_x && m_y == a_y) continue;
-        board[m_x][m_y] -= board[a_x][a_y]/2;
-        is_attacked[m_x][m_y] = 1;
-    }
-
-    is_attacked[a_x][a_y] = 1;
-    is_attacked[d_x][d_y] = 1;
-
-    return ;
-}
-
-int is_over(){
-
-int cnt = 0;
-    for(int j = 1; j<=n;j++){
-        for(int k = 1; k<=m;k++){
-            if(board[j][k] > 0) cnt ++;
-            if(cnt > 1) return 0;
-        }
-
-    }
-
-    return 1;
-}
-
-int main(){
-
-    // vector<int> v;
-
-    cin >> n >> m >> z ;
-
-    for(int i = 1; i<=n;i++){
-        for(int j= 1; j<=m;j++){
+int main() {
+    // 입력:
+    cin >> n >> m >> k;
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < m; j++)
             cin >> board[i][j];
-            att[i][j] = 0;
-        }
+
+    // k턴 동안 진행됩니다.
+    while(k--) {
+        // 턴을 진행하기 전 살아있는 포탑을 정리합니다.
+        live_turret.clear();
+        for(int i = 0; i < n; i++)
+            for(int j = 0; j < m; j++)
+                if(board[i][j]) {
+                    Turret new_turret;
+                    new_turret.x = i;
+                    new_turret.y = j;
+                    new_turret.r = rec[i][j];
+                    new_turret.p = board[i][j];
+
+                    live_turret.push_back(new_turret);
+                }
+
+        // 살아있는 포탑이 1개 이하라면 바로 종료합니다.
+        if(live_turret.size() <= 1) 
+            break;
+
+        // 턴을 진행하기 전 필요한 전처리를 정리해줍니다.
+        Init();
+
+        // 각성을 진행합니다.
+        Awake();
+
+        // 레이저 공격을 진행합니다.
+        bool is_suc = LaserAttack();
+        // 레이저 공격을 하지 못했다면 포탄 공격을 진행합니다.
+        if(!is_suc) 
+            BombAttack();
+
+        // 공격에 관여하지 않은 모든 살아있는 포탑의 힘을 1 증가시킵니다.
+        Reserve();
     }
 
-    for(int i = 1; i<=z; i++){
-        
-        init();
-        if(is_over()) break;
-        select_att();
-        select_def();
+    // 살아있는 포탑의 힘 중 가장 큰 값을 출력합니다.
+    int ans = 0;
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < m; j++)
+            ans = max(ans, board[i][j]);
 
-        board[a_x][a_y] +=n+m;
-        att[a_x][a_y] = i;
-        vector<pair<int,int>>v;
-        visited[a_x][a_y] = 1;
-        attack(a_x,a_y,v);
-
-        if(is_find == 0) bomb();
-        else{
-            board[d_x][d_y] -= (board[a_x][a_y]-board[a_x][a_y] / 2 );
-            is_attacked[a_x][a_y] = 1;
-            is_attacked[d_x][d_y] = 1;
-            for(int i = 0 ; i<last_v.size();i++){
-                //cout << last_v[i].first << ' '  << last_v[i].second << '\n';
-                board[last_v[i].first][last_v[i].second] -= board[a_x][a_y] / 2;
-                is_attacked[last_v[i].first][last_v[i].second] = 1;
-            }
-        }
-        re();
-
-        // cout << '\n';
-        // for(int j = 1; j<=n;j++){
-        //     for(int k = 1; k<=m;k++){
-        //         cout << board[j][k] << ' ';
-        //     }
-        //     cout << '\n';
-        // }
-
-        // cout << '\n';
-        // for(int j = 1; j<=n;j++){
-        //     for(int k = 1; k<=m;k++){
-        //         cout << is_attacked[j][k] << ' ';
-        //     }
-        //     cout << '\n';
-        // }
-
-    }
-
-    int result = 0;
-    
-    for(int i = 1; i<=n;i++){
-        for(int j= 1; j<=m;j++){
-            if(result < board[i][j]) result = board[i][j];
-        }
-    }
-
-    cout << result;
+    cout << ans;
     return 0;
 }
