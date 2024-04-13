@@ -77,7 +77,7 @@ void attack(int x, int y, vector<pair<int,int>> v){
         v2.push_back(make_pair(m_x,m_y));
 
         attack(m_x,m_y,v2);
-        visited[x][y] = 0;
+        visited[m_x][m_y] = 0;
     }
 
     return;
