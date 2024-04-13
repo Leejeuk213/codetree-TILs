@@ -48,7 +48,7 @@ void attack(int x, int y, vector<pair<int,int>> v){
 
     if(visited[x][y] == 1) return;
     if(board[x][y] <= 0) return ;
-
+    if(v.size() > min_route) return;
     if(x == d_x && y == d_y){
         is_find = 1;
         if(min_route > v.size()){
