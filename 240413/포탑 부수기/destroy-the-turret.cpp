@@ -266,6 +266,8 @@ void bomb(){
 
         if(m_y < 1) m_y = m;
         if(m_y > m) m_y = 1;
+
+        if(m_x == a_x && m_y == a_y) continue;
         board[m_x][m_y] -= board[a_x][a_y]/2;
         is_attacked[m_x][m_y] = 1;
     }
@@ -322,11 +324,28 @@ int main(){
             is_attacked[a_x][a_y] = 1;
             is_attacked[d_x][d_y] = 1;
             for(int i = 0 ; i<last_v.size();i++){
+                //cout << last_v[i].first << ' '  << last_v[i].second << '\n';
                 board[last_v[i].first][last_v[i].second] -= board[a_x][a_y] / 2;
                 is_attacked[last_v[i].first][last_v[i].second] = 1;
             }
         }
         re();
+
+        // cout << '\n';
+        // for(int j = 1; j<=n;j++){
+        //     for(int k = 1; k<=m;k++){
+        //         cout << board[j][k] << ' ';
+        //     }
+        //     cout << '\n';
+        // }
+
+        // cout << '\n';
+        // for(int j = 1; j<=n;j++){
+        //     for(int k = 1; k<=m;k++){
+        //         cout << is_attacked[j][k] << ' ';
+        //     }
+        //     cout << '\n';
+        // }
 
     }
 
