@@ -46,9 +46,7 @@ void init(){
 
 void attack(int x, int y, vector<pair<int,int>> v){
 
-    if(visited[x][y] == 1) return;
-    if(board[x][y] <= 0) return ;
-    if(v.size() > min_route) return;
+    if(v.size() >= min_route) return;
     if(x == d_x && y == d_y){
         is_find = 1;
         if(min_route > v.size()){
@@ -58,7 +56,6 @@ void attack(int x, int y, vector<pair<int,int>> v){
         return;
     }
 
-    visited[x][y] = 1;
 
     for(int i = 0 ; i< 4; i++){
 
@@ -71,14 +68,15 @@ void attack(int x, int y, vector<pair<int,int>> v){
         if(m_y < 1) m_y = m;
         if(m_y > m) m_y = 1;
 
-        if(board[m_x][m_y] <= 0) continue;
+        if(board[m_x][m_y] <= 0 || visited[m_x][m_y] == 1) continue;
         vector<pair<int,int>> v2 = v;
 
+        visited[m_x][m_y] = 1;
         v2.push_back(make_pair(m_x,m_y));
 
         attack(m_x,m_y,v2);
+        visited[m_x][m_y] = 0;
     }
-    visited[x][y] = 0;
 
     return;
 }
@@ -315,6 +313,7 @@ int main(){
         board[a_x][a_y] +=n+m;
         att[a_x][a_y] = i;
         vector<pair<int,int>>v;
+        visited[a_x][a_y] = 1;
         attack(a_x,a_y,v);
 
         if(is_find == 0) bomb();
@@ -323,28 +322,11 @@ int main(){
             is_attacked[a_x][a_y] = 1;
             is_attacked[d_x][d_y] = 1;
             for(int i = 0 ; i<last_v.size();i++){
-                // cout << last_v[i].first << ' '  << last_v[i].second << '\n';
                 board[last_v[i].first][last_v[i].second] -= board[a_x][a_y] / 2;
                 is_attacked[last_v[i].first][last_v[i].second] = 1;
             }
         }
         re();
-
-        // cout << '\n';
-        // for(int j = 1; j<=n;j++){
-        //     for(int k = 1; k<=m;k++){
-        //         cout << board[j][k] << ' ';
-        //     }
-        //     cout << '\n';
-        // }
-
-        // cout << '\n';
-        // for(int j = 1; j<=n;j++){
-        //     for(int k = 1; k<=m;k++){
-        //         cout << is_attacked[j][k] << ' ';
-        //     }
-        //     cout << '\n';
-        // }
 
     }
 
