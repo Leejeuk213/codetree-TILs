@@ -78,7 +78,6 @@ void attack(int x, int y, vector<pair<int,int>> v){
 
         attack(m_x,m_y,v2);
     }
-    visited[x][y] = 0;
 
     return;
 }
